@@ -3,12 +3,10 @@ version: '3.8'
 services:
   web:
     image: ${DOCKERHUB_USERNAME}/myflask:latest
-    build: null
     environment:
       - FLASK_ENV=production
     expose:
       - "5000"
-    ports: []  # 외부 노출은 nginx가 담당
     restart: unless-stopped
 
   nginx:
@@ -17,6 +15,19 @@ services:
       - web
     ports:
       - "80:80"
+      - "443:443"  # HTTPS를 위한 443 포트 추가
     volumes:
       - ./nginx:/etc/nginx/conf.d:ro
+      # Certbot이 발급한 인증서를 Nginx가 읽을 수 있게 연결
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
     restart: unless-stopped
+
+  # SSL 인증서를 발급하고 갱신해주는 서비스 추가
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    # 인증서를 자동으로 갱신하는 명령 (12시간마다 체크)
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
