@@ -21,7 +21,7 @@ services:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./certbot/config:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
-    environment: # <- 매핑 형식
+    environment: # <- 매핑 형식 //dadf
       DOMAIN: ${DOMAIN}
     entrypoint:
       - sh
