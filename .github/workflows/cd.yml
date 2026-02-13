@@ -39,7 +39,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-    security-gate:
+  security-gate:
     needs: build-and-push
     runs-on: ubuntu-latest
     permissions:
