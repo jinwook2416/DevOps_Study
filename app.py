@@ -15,7 +15,7 @@ def init_db():
 init_db()
 
 @app.route('/')
-def hello():
+def index():
     return render_template('index.html')
 
 @app.route('/list')
