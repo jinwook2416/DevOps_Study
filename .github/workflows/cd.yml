@@ -39,16 +39,108 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy:
+  security-gate:
     needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      security-events: write
+    env:
+      IMG: ${{ secrets.DOCKERHUB_USERNAME }}/myflask@${{ needs.build-and-push.outputs.image-digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy image scan (HIGH/CRIT report)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.IMG }}
+          # pkg-types를 삭제하고 scanners를 사용하여 경고 해결
+          scanners: "vuln"
+          severity: "HIGH,CRITICAL"
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-image.sarif
+          # 취약점이 있어도 배포를 진행하기 위해 exit-code를 0으로 설정
+          exit-code: "0"
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4 # v3 -> v4 업데이트
+        with:
+          sarif_file: trivy-image.sarif
+
+      - name: Trivy JSON (for SeveritySource)
+        if: always()
+        run: |
+          trivy image --scanners vuln \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --detection-priority precise \
+            -f json -o trivy-image.json "${IMG}" || true
+
+      - name: Upload Trivy JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-image-json
+          path: trivy-image.json
+          retention-days: 7
+
+      - name: Login to Docker Hub (for cosign push)
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: SBOM (SPDX)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.IMG }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3.9.2
+
+      - name: Cosign sign & attest (keyless)
+        env: { COSIGN_EXPERIMENTAL: "1" }
+        run: |
+          set -euo pipefail
+          cosign sign --yes "$IMG"
+          cosign attest --yes --predicate sbom.spdx.json --type spdx "$IMG"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-spdx
+          path: sbom.spdx.json
+          retention-days: 30
+
+  deploy:
+    needs: [ build-and-push, security-gate ]
     runs-on: ubuntu-latest
     env:
       REMOTE_DIR: ${{ secrets.REMOTE_APP_DIR }}
       DOMAIN: ${{ secrets.DOMAIN }}
       LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
-      IMAGE_TAG: ${{ github.sha }}
+      IMG: ${{ secrets.DOCKERHUB_USERNAME }}/myflask@${{ needs.build-and-push.outputs.image-digest }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3.9.2
+
+      - name: Verify image signature (keyless)
+        env: { COSIGN_EXPERIMENTAL: "1"}
+        run: |
+          set -euo pipefail
+          cosign verify \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}(/|@).*" \
+            "${IMG}" > /dev/null
+          echo "Cosign verify OK for ${IMG}"
+
       - name: Set up SSH agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -64,14 +156,15 @@ jobs:
       - name: Test SSH
         run: ssh -o ConnectTimeout=10 ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} "echo OK"
 
-      - name: Prepare remote directory & .env
+      - name: Prepare remote directory & .env (pin by digest)
         run: |
           ssh ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} <<'EOF'
+            set -euo pipefail
             mkdir -p "${{ env.REMOTE_DIR }}"/{nginx,certbot/{config,www,logs}}
             cat > "${{ env.REMOTE_DIR }}/.env" <<EOT
             DOMAIN=${{ env.DOMAIN }}
             LETSENCRYPT_EMAIL=${{ env.LETSENCRYPT_EMAIL }}
-            IMAGE_TAG=${{ env.IMAGE_TAG }}
+            IMAGE_REF=${{ env.IMG }}
             DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
             EOT
           EOF
@@ -137,7 +230,6 @@ jobs:
         run: |
           ssh ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} << 'EOF'
             cd '${{ env.REMOTE_DIR }}'
-            # 따옴표 충돌 방지를 위해 큰따옴표 내에서 변수 이스케이프 사용
             docker compose -f docker-compose.prod.yml exec -T nginx sh -c "envsubst '\$DOMAIN' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -s reload"
           EOF
 
