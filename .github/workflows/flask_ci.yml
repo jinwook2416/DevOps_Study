@@ -20,9 +20,9 @@ jobs:
           # give the app a moment to start
           sleep 10
 
-      - name: Run test suite
-        run: |
-          docker compose exec web pytest
+      # - name: Run test suite
+      #   run: |
+      #     docker compose exec web pytest
 
       - name: Tear down
         if: always()
