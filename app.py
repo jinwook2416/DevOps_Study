@@ -8,6 +8,7 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# 함수는 한 번만 정의하면 됩니다
 def init_db():
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
@@ -17,18 +18,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-init_db()
-
-def init_db():
-    conn = sqlite3.connect('database.db')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS challenges 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                  title TEXT, content TEXT, filename TEXT, flag TEXT)''')
-    conn.commit()
-    conn.close()
-
-init_db()
+init_db() # 실행도 한 번만!
 
 @app.route('/')
 def index():
@@ -67,6 +57,5 @@ def register():
         return redirect(url_for('problem_list'))
     return render_template('register.html')
 
-
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000)
