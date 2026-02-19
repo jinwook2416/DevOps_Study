@@ -81,4 +81,5 @@ def download_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    host_addr = os.getenv('FLASK_HOST', '127.0.0.1')
+    app.run(host=host_addr, port=5000)

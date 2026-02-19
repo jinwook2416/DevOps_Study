@@ -2,7 +2,8 @@
 
 services:
   web:
-    image: ${DOCKERHUB_USERNAME}/myflask:latest
+    # image: ${DOCKERHUB_USERNAME}/myflask:latest
+    image: ${IMAGE_REF}
     environment: # <- 매핑 형식
       FLASK_ENV: production
     expose:
