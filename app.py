@@ -18,8 +18,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-init_db() # 실행도 한 번만!
-
+init_db()
 @app.route('/')
 def index():
     return render_template('index.html')
