@@ -19,6 +19,17 @@ def init_db():
 
 init_db()
 
+def init_db():
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS challenges 
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                  title TEXT, content TEXT, filename TEXT, flag TEXT)''')
+    conn.commit()
+    conn.close()
+
+init_db()
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -55,6 +66,9 @@ def register():
         
         return redirect(url_for('problem_list'))
     return render_template('register.html')
+=======
+    return render_template('list.html', problems=problems)  
+>>>>>>> main
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
