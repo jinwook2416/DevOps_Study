@@ -3,14 +3,12 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify, s
 
 app = Flask(__name__)
 
-# 파일 업로드 경로 설정
 UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# DB 초기화 (기존 구조 유지)
 def init_db():
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
@@ -22,12 +20,10 @@ def init_db():
 
 init_db()
 
-# 메인 페이지
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# 문제 목록 페이지
 @app.route('/list')
 def problem_list():
     conn = sqlite3.connect('database.db')
@@ -38,7 +34,6 @@ def problem_list():
     conn.close()
     return render_template('list.html', problems=problems)
 
-# 문제 등록 페이지
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -62,7 +57,6 @@ def register():
         return redirect(url_for('problem_list'))
     return render_template('register.html')
 
-# 문제 풀이 페이지
 @app.route('/solve/<int:problem_id>', methods=['GET', 'POST'])
 def solve(problem_id):
     conn = sqlite3.connect('database.db')
@@ -83,8 +77,6 @@ def solve(problem_id):
 
     return render_template('solve.html', problem=problem)
 
-# 파일 다운로드 라우트 (추가됨)
-@app.route('/download/<filename>')
 def download_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
