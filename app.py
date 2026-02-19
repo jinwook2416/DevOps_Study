@@ -1,7 +1,12 @@
-import sqlite3
+import sqlite3, os
 from flask import Flask, render_template, request, redirect, url_for
 
 app = Flask(__name__)
+UPLOAD_FOLDER = 'uploads'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 def init_db():
     conn = sqlite3.connect('database.db')
@@ -26,7 +31,30 @@ def problem_list():
     c.execute('SELECT * FROM challenges')
     problems = c.fetchall()
     conn.close()
-    return render_template('list.html', problems=problems)  
+    return render_template('list.html', problems=problems)   
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        title = request.form['title']
+        content = request.form['content']
+        flag = request.form['flag']
+        file = request.files['file']
+        
+        filename = ''
+        if file:
+            filename = file.filename
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        
+        conn = sqlite3.connect('database.db')
+        c = conn.cursor()
+        c.execute('INSERT INTO challenges (title, content, filename, flag) VALUES (?, ?, ?, ?)',
+                  (title, content, filename, flag))
+        conn.commit()
+        conn.close()
+        
+        return redirect(url_for('problem_list'))
+    return render_template('register.html')
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
