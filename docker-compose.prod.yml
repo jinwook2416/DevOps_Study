@@ -1,11 +1,9 @@
-# version: "3.9"    # <- 경고만 유발하므로 그대로 생략
-
 services:
   web:
-    # image: ${DOCKERHUB_USERNAME}/myflask:latest
     image: ${IMAGE_REF}
-    environment: # <- 매핑 형식
+    environment:
       FLASK_ENV: production
+      FLASK_HOST: 0.0.0.0  
     expose:
       - "5000"
     restart: unless-stopped
@@ -22,7 +20,7 @@ services:
       - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
       - ./certbot/config:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
-    environment: # <- 매핑 형식
+    environment:
       DOMAIN: ${DOMAIN}
     entrypoint:
       - sh

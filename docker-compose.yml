@@ -7,7 +7,6 @@ services:
       - "5000:5000"
     environment:
       - FLASK_ENV=development
-      - FLASK_HOST=0.0.0.0
     volumes:
       - .:/app
       - ./uploads:/app/uploads  # 이미지 업로드 기능을 위해 추가 권장
