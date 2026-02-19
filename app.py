@@ -8,6 +8,7 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# 함수는 한 번만 정의하면 됩니다
 def init_db():
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
