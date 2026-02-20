@@ -77,6 +77,7 @@ def solve(problem_id):
 
     return render_template('solve.html', problem=problem)
 
+@app.route('/download/<filename>')
 def download_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
