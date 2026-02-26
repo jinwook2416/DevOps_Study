@@ -1,0 +1,104 @@
+---
+- name: Install k3s and deploy Flask app on GCE
+  hosts: k3s_nodes
+  become: true
+  gather_facts: true
+
+  vars:
+    # 1. 앱 및 네임스페이스 설정
+    app_name: "{{ lookup('env', 'APP_NAME') | default('flask-app', true) }}"
+    namespace: "{{ lookup('env', 'K8S_NAMESPACE') | default('flask-app', true) }}"
+    
+    # 2. 이미지 참조 로직 수정 (명령어 인자를 최우선으로 참조)
+    image_ref_env: "{{ lookup('env', 'IMAGE_REF') | default('', true) | trim }}"
+    image_ref: "{{ image_ref_env if (image_ref_env | length > 0) else 'dlwlsdnr24/myflask:latest' }}"
+    
+    # 3. 인프라 및 네트워크 설정
+    replicas: "{{ lookup('env', 'REPLICAS') | default('2', true) | int }}"
+    service_type: "{{ lookup('env', 'SERVICE_TYPE') | default('ClusterIP', true) }}"
+    node_port: "{{ lookup('env', 'K3S_NODE_PORT') | default('30080', true) | int }}"
+    domain_env: "{{ lookup('env', 'DOMAIN') | default('', true) | trim }}"
+    ingress_host_env: "{{ lookup('env', 'INGRESS_HOST') | default('', true) | trim }}"
+    ingress_host: "{{ ingress_host_env if (ingress_host_env | length > 0) else domain_env }}"
+    tls_enabled: "{{ (ingress_host | length > 0) | bool }}"
+    
+    # 4. 보안 및 인증서 설정
+    letsencrypt_email: "{{ lookup('env', 'LETSENCRYPT_EMAIL') | default('', true) | trim }}"
+    tls_secret_name: "{{ lookup('env', 'TLS_SECRET_NAME') | default(app_name ~ '-tls', true) }}"
+    certbot_contact_arg: "{{ ('--email ' ~ letsencrypt_email) if (letsencrypt_email | length > 0) else '--register-unsafely-without-email' }}"
+    cert_fullchain_path: "/etc/letsencrypt/live/{{ ingress_host }}/fullchain.pem"
+    cert_privkey_path: "/etc/letsencrypt/live/{{ ingress_host }}/privkey.pem"
+    container_port: 5000
+    k3s_install_exec: "--write-kubeconfig-mode 644"
+
+  pre_tasks:
+    - name: Show selected image reference
+      ansible.builtin.debug:
+        msg:
+          - "image_ref={{ image_ref }}"
+          - "ingress_host={{ ingress_host if (ingress_host | length > 0) else '<none>' }}"
+          - "tls_enabled={{ tls_enabled }}"
+
+  tasks:
+    - name: Install required packages
+      ansible.builtin.apt:
+        name: [curl, ca-certificates]
+        state: present
+        update_cache: true
+
+    - name: Check whether k3s is installed
+      ansible.builtin.command: bash -lc "command -v k3s"
+      register: k3s_bin
+      failed_when: false
+      changed_when: false
+
+    - name: Install k3s if missing
+      ansible.builtin.shell: |
+        set -euo pipefail
+        curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="{{ k3s_install_exec }}" sh -
+      args:
+        executable: /bin/bash
+      when: k3s_bin.rc != 0
+
+    - name: Ensure k3s service is enabled and running
+      ansible.builtin.systemd:
+        name: k3s
+        state: started
+        enabled: true
+
+    - name: Ensure kubeconfig is readable
+      ansible.builtin.file:
+        path: /etc/rancher/k3s/k3s.yaml
+        mode: "0644"
+
+    - name: Ensure target namespace exists
+      ansible.builtin.shell: |
+        kubectl create namespace {{ namespace }} --dry-run=client -o yaml | kubectl apply -f -
+      args:
+        executable: /bin/bash
+
+    - name: Render Kubernetes manifest with Environment Variables
+      ansible.builtin.template:
+        src: ../manifests/k3s-app.yaml.j2
+        dest: /tmp/{{ app_name }}.yaml
+        mode: "0644"
+
+    - name: Apply manifest
+      ansible.builtin.command: kubectl apply -f /tmp/{{ app_name }}.yaml
+
+    # 5. [추가] 환경 변수 강제 설정 (0.0.0.0 바인딩 문제 해결)
+    - name: Set FLASK_HOST environment variable
+      ansible.builtin.command: 
+        cmd: kubectl -n {{ namespace }} set env deployment/{{ app_name }} FLASK_HOST=0.0.0.0
+
+    - name: Wait for deployment rollout
+      ansible.builtin.command: 
+        cmd: kubectl -n {{ namespace }} rollout status deployment/{{ app_name }} --timeout=240s
+
+    - name: Show status
+      ansible.builtin.command: kubectl -n {{ namespace }} get all -o wide
+      register: final_status
+
+    - name: Print final status
+      ansible.builtin.debug:
+        var: final_status.stdout_lines

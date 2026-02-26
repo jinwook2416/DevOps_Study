@@ -1,0 +1,16 @@
+project_id = "project-846b583d-8204-4d23-953"
+region     = "us-central1"
+zone       = "us-central1-a"
+
+instance_name      = "edu-k3s-vm"
+machine_type       = "e2-medium"
+boot_disk_size_gb  = 30
+ssh_user           = "dlwlsdnr24"
+ssh_public_key     = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCjVIOfjvZQScTDReLeeedcpeexkLwamIBEs53rW8FabbQIaqC4Zb39J3QlBZYXlBlYWUahqIQ6gWqXdf3QS33XJ1gOw2XTdr1fweVo2IWG+d6jG6BuCn7TEPTYkdgbN1Zl1QR4C4J2bHlb4PmAg6nLD5fa3jCQIz+pcpbdR/UmOv5aYsCDvW35LT5PIlrKtLvTUUjYTGZ7jdyHbxbHVNR/txNg+b9G5JhXDGe56vTthT2ts7Ig8KT7elNAmJILkSTyPv8ZFlKa6+ZF8+Z/5sKESrx9sj+RT/WtH2W0tDr8heFNpVh0WIybgBsr9B13Lyiy7kBHzULVS/mkygWp5ZNmCZ9gldMHrB3wI6+8b1lfBuqMWKUi+qIeYLjlQFY2hcXhOlh7U4ewCpoLYRNtpy9VuCqhZS7K17z9eWMR0veQXQKXIKOx/0gSFiDlj5ZSHdawYdONDIL0JE5PAPMr4mgBCLZewSmjcB+m2V9WExa/hmi0mXhh1Gde5FnZA6Ip1tQ4/2C74tniTi9j4m0hLbt/lslfYM6CDqul6EfYfXSpaBUPnIQt4LZGW2p0fckEyr/+RHNhgIGgNWvc/1SsPJ0DYsQRwyBhDk55YvwweTvgjL4eKtB/fKdtl1msOfQIRK0jf4vt81VgsQFKPeS+tQYByiqMl4er29CT3FyLlk8bHQ== dlwlsdnr@jinwook"
+
+allow_http_cidrs = ["0.0.0.0/0"]
+
+labels = {
+  owner = "devops-class"
+  stage = "training"
+}

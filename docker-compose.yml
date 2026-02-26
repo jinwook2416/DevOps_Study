@@ -1,0 +1,26 @@
+services:
+  web:
+    build: .
+    # (선택) 외부에서 직접 5000번으로 접속할 일이 없다면 빼도 되지만, 
+    # 테스트를 위해 남겨두셔도 무방합니다.
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+    volumes:
+      - .:/app
+      - ./uploads:/app/uploads  # 이미지 업로드 기능을 위해 추가 권장
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"  # <-- HTTPS를 위해 443 포트 반드시 추가!
+    depends_on:
+      - web
+    volumes:
+      - ./nginx:/etc/nginx/conf.d:ro
+      # [가장 중요] 호스트의 인증서 폴더를 컨테이너의 /etc/letsencrypt로 연결합니다.
+      - ./certbot/conf:/etc/letsencrypt:ro 
+      # 만약 certbot 폴더가 config라는 이름으로도 있다면 아래 줄도 추가해두면 안전합니다.
+      # - ./certbot/config:/etc/letsencrypt_config:ro

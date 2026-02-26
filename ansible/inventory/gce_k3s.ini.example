@@ -1,0 +1,3 @@
+[k3s_nodes]
+# 예시: 34.12.34.56 ansible_user=ubuntu
+34.72.128.252 ansible_user=dlwlsdnr24
