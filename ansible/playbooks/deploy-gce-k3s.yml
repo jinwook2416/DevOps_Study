@@ -108,6 +108,15 @@
           ansible.builtin.apt:
             name: certbot
             state: present
+        - name: Install required packages
+          ansible.builtin.apt:
+            name:
+              - curl
+              - ca-certificates
+              - psmisc  # fuser 사용을 위해 필요
+              - lsof    # lsof 사용을 위해 필요
+            state: present
+            update_cache: true
 
         - name: Issue or renew Let's Encrypt certificate using certbot
           ansible.builtin.shell: |
@@ -118,12 +127,12 @@
               exit 0
             fi
             trap 'systemctl start k3s || true' EXIT
-            systemctl stop k3s
+            systemctl stop k3s || true
             
-            if command -v fuser >/dev/null 2>&1; then
-              fuser -k 80/tcp || true
-            fi
+            fuser -k 80/tcp || true
+            lsof -ti:80 | xargs kill -9 || true
 
+            sleep 7
             certbot certonly \
               --standalone \
               --preferred-challenges http \
@@ -132,7 +141,7 @@
               --keep-until-expiring \
               {{ certbot_contact_arg }} \
               -d "{{ ingress_host }}"
-              
+
             systemctl start k3s
             trap - EXIT
           args:
