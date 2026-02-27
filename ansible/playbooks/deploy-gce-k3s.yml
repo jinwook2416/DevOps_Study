@@ -119,10 +119,11 @@
             fi
             trap 'systemctl start k3s || true' EXIT
             systemctl stop k3s
-            if command -v k3s-killall.sh >/dev/null 2>&1; then
-              # standalone challenge를 확실히 받기 위해 남아있는 k3s 컨테이너/iptables 규칙 정리
-              k3s-killall.sh || true
+            
+            if command -v fuser >/dev/null 2>&1; then
+              fuser -k 80/tcp || true
             fi
+
             certbot certonly \
               --standalone \
               --preferred-challenges http \
@@ -131,6 +132,7 @@
               --keep-until-expiring \
               {{ certbot_contact_arg }} \
               -d "{{ ingress_host }}"
+              
             systemctl start k3s
             trap - EXIT
           args:
